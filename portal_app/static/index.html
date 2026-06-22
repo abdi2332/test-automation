@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Vehicle Tracking Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <nav>
+        <div class="logo">VehiclePortal</div>
+        <ul>
+            <li><a href="#" onclick="showSection('fleet')">Fleet View</a></li>
+            <li><a href="#" onclick="showSection('register')">Add Vehicle</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <!-- Fleet Section -->
+        <section id="fleet-section">
+            <div class="dashboard">
+                <div class="sidebar">
+                    <h3>Live Fleet</h3>
+                    <div id="vehicle-list" class="vehicle-list"></div>
+                </div>
+                <div class="map-view">
+                    <div id="map-container">
+                        <div id="vehicle-marker"></div>
+                        <div class="coords-box">
+                            <strong>Lat:</strong> <span id="lat">--</span><br>
+                            <strong>Lng:</strong> <span id="lng">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Register Section -->
+        <section id="register-section" style="display:none;">
+            <div class="form-card">
+                <h2>New Vehicle Registration</h2>
+                <form id="regGroup">
+                    <div class="field">
+                        <label>VIN</label>
+                        <input type="text" id="vinInput" placeholder="VIN-12345" required>
+                    </div>
+                    <div class="field">
+                        <label>Owner</label>
+                        <input type="text" id="ownerInput" placeholder="John Doe" required>
+                    </div>
+                    <button type="submit" id="submitReg">Register</button>
+                </form>
+                <div id="successMsg" class="success" style="display:none;">
+                    Successfully registered! ID: <span id="newId"></span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentVehicleId = null;
+
+        function showSection(name) {
+            document.getElementById('fleet-section').style.display = name === 'fleet' ? 'block' : 'none';
+            document.getElementById('register-section').style.display = name === 'register' ? 'block' : 'none';
+            if (name === 'fleet') loadFleet();
+        }
+
+        async function loadFleet() {
+            const resp = await fetch('/api/vehicles');
+            const vehicles = await resp.json();
+            const list = document.getElementById('vehicle-list');
+            list.innerHTML = '';
+            vehicles.forEach(v => {
+                const div = document.createElement('div');
+                div.className = `vehicle-item ${v.id === currentVehicleId ? 'active' : ''}`;
+                div.innerHTML = `<strong>${v.id}</strong><br><small>${v.year} ${v.make} ${v.model}</small><br><small>Owner: ${v.owner}</small>`;
+                div.onclick = () => selectVehicle(v);
+                list.appendChild(div);
+            });
+        }
+
+        async function selectVehicle(v) {
+            currentVehicleId = v.id;
+            loadFleet(); // Refresh highlights
+            updateGPS();
+        }
+
+        async function updateGPS() {
+            if (!currentVehicleId) return;
+            const resp = await fetch(`/api/gps/${currentVehicleId}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            document.getElementById('lat').textContent = data.lat;
+            document.getElementById('lng').textContent = data.lng;
+
+            // Move marker randomly within bounds for visual effect
+            const marker = document.getElementById('vehicle-marker');
+            marker.style.left = (Math.random() * 80 + 10) + '%';
+            marker.style.top = (Math.random() * 80 + 10) + '%';
+            marker.style.display = 'block';
+        }
+
+        document.getElementById('regGroup').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                vin: document.getElementById('vinInput').value,
+                owner: document.getElementById('ownerInput').value
+            };
+            const submitBtn = document.getElementById('submitReg');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Decoding VIN...';
+
+            const resp = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Register';
+
+            document.getElementById('newId').textContent = `${data.vehicle.id} (${data.vehicle.make} ${data.vehicle.model})`;
+            document.getElementById('successMsg').style.display = 'block';
+            document.getElementById('regGroup').reset();
+            loadFleet();
+        });
+
+        // Initial load
+        loadFleet();
+        setInterval(updateGPS, 3000);
+    </script>
+</body>
+
+</html>

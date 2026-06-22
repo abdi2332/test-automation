@@ -16,6 +16,11 @@ BASE_URL = os.getenv("BASE_URL", "https://the-internet.herokuapp.com")
 LOGIN_URL = f"{BASE_URL}/login"
 DASHBOARD_URL = f"{BASE_URL}/secure"
 
+# Real Portal URLs (FastAPI)
+PORTAL_URL = "http://localhost:8000"
+REGISTRATION_URL = f"{PORTAL_URL}"
+GPS_DASHBOARD_URL = f"{PORTAL_URL}"
+
 # Test credentials (for demo site)
 # In real projects, these come from .env file
 USERNAME = os.getenv("TEST_USERNAME", "tomsmith")
